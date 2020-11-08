@@ -1,6 +1,31 @@
 class Game{
     constructor(state){
-        this.state = state;
+        this.state = state || Game.defaultState();
+    }
+
+    static defaultState(){
+        return {
+            main: {
+                coins: 0,
+                cps: 1,
+                time: 0,
+                tab: tabNames[0]
+            },
+            upgrades: [
+                {
+                    inc: 1,
+                    cost: 10,
+                    multi: 1.1,
+                    type: 1
+                },
+                {
+                    inc: 3,
+                    cost: 40,
+                    isBought: false,
+                    type: 2
+                }
+            ]
+        };
     }
 
     save(){
@@ -10,18 +35,19 @@ class Game{
     load(){
         const gameState = JSON.parse(localStorage.getItem('savedGame'));
         this.state = {...this.state, ...gameState};
-        this.state.main = this.toDecimal(stateNames.main, this.state.main, 1);
-        this.state.upgrades = this.toDecimal(stateNames.upgrades, this.state.upgrades, 2);
+        this.state.main = toDecimal(stateNames.main, this.state.main, 1);
+        this.state.upgrades = toDecimal(stateNames.upgrades, this.state.upgrades, 3);
         this.upgrades = [];
         for (const i in this.state.upgrades) {
             let newUpgrade = new Upgrade(this.state.upgrades[i]);
             this.upgrades.push(newUpgrade);
         }
+        this.showTab(this.currentTab);
     }
 
     reset(){
         if (confirm('Would you like to reset your game?')) {
-            this.state = this.setPlayer();
+            this.state = Game.defaultState();
             this.save();
             location.reload();
         }
@@ -51,6 +77,14 @@ class Game{
         return this.state.main.time;
     }
 
+    set currentTab(tab){
+        this.state.main.tab = tab;
+    }
+
+    get currentTab(){
+        return this.state.main.tab;
+    }
+
     addCoins(ms){
         this.time += ms;
         while (this.time > 50) {
@@ -67,27 +101,15 @@ class Game{
         this.coinsPerSec = this.coinsPerSec.add(value);
     }
 
-    setPlayer(){
-        return {};
-    }
-
-    toDecimal(arrContents, obj, opt){
-        let array = arrContents;
-        switch (opt) {
-            case 1:
-                for (let i = 0; i < array.length; i++) {
-                    obj[array[i]] = new Decimal(obj[array[i]]);
-                }
-                break;
-            case 2:
-                for (let i = 0; i < array.length; i++) {
-                    for (let j in obj) {
-                        obj[j][array[i]] = new Decimal(obj[j][array[i]]);
-                    }
-                }
-                break;
+    showTab(tabName) {
+        for (let i = 0; i < tabNames.length; i++) {
+            document.getElementById('tab' + tabNames[i]).style.display = 'none';
         }
-        return obj;
+        document.getElementById('tab' + tabName).style.display = 'block';
+        if (this.currentTab != tabName) { 
+            this.currentTab = tabName;
+            this.save();
+        } 
     }
 }
 
@@ -128,6 +150,22 @@ class Upgrade{
         return this.state.multi;
     }
 
+    set isBought(isBought){
+        this.state.isBought = isBought; 
+    }
+
+    get isBought(){
+        return this.state.isBought;
+    }
+
+    set type(type){
+        this.state.type = type; 
+    }
+
+    get type(){
+        return this.state.type;
+    }
+
     changeCost(funct){
         return this.currentCost = funct;
     }
@@ -136,48 +174,45 @@ class Upgrade{
         return value.greaterThanOrEqualTo(this.currentCost);
     }
 
-    buy(obj){
-        if (this.isBuyable(obj.coins)) {
-            obj.subCoins(this.currentCost);
-            obj.addCps(this.increase);
-            this.changeCost(this.nextCost);
+    buy(obj, type){
+        switch (type) {
+            case 1: // Rebuyable upgrades; scaling costs, adding cps each time.
+                if (this.isBuyable(obj.coins)) {
+                    obj.subCoins(this.currentCost);
+                    obj.addCps(this.increase);
+                    this.changeCost(this.nextCost);
+                }
+                break;
+            case 2: // One-time buy upgrades; no scaling costs, give different effects.
+                if (this.isBuyable(obj.coins) && !this.isBought) {
+                    obj.subCoins(this.currentCost);
+                    this.isBought = true;
+                }
+                break;
         }
     }
 }
 
-const player = {
-    main: {
-        coins: 0,
-        cps: 1,
-        time: 0
-    },
-    upgrades: [
-        {
-            inc: 1,
-            cost: 10,
-            multi: 1.1
-        },
-        {
-            inc: 3,
-            cost: 40,
-            multi: 1.17
-        }
-    ]
-};
-
+const tabNames = ['upgrade-container', 'settings-container'];
 const stateNames = {
     main: [
         'coins',
         'cps'
     ],
     upgrades: [
-        'inc',
-        'cost',
-        'multi'
+        [
+            'inc',
+            'cost',
+            'multi'
+        ],
+        [
+            'inc',
+            'cost'
+        ]
     ]
 };
 
-let game = new Game(player);
+let game = new Game();
 const interval = {
     update: game.time,
     save: 15000
@@ -197,11 +232,20 @@ let init = function(){
     const upgradeTitles = ['Upgrade 1', 'Upgrade 2'];
     elements[3] = document.getElementsByClassName('upgrade-cost-text');
     for (let i = 0; i < elements[1].length; i++) {
-        elements[1][i].onclick = function(){ game.upgrades[i].buy(game) };
+        elements[1][i].onclick = function(){ game.upgrades[i].buy(game, game.upgrades[i].type) };
         elements[2][i].textContent = upgradeTitles[i];
         elements[3][i].textContent = 'Cost: ';
     }
     elements[4] = document.getElementsByClassName('upgrade-costs');
+    elements[5] = document.getElementsByClassName('tab-buttons');
+    elements[6] = document.getElementsByClassName('tab-titles');
+    const tabTitles = ['Upgrades', 'Settings'];
+    for (let i = 0; i < elements[5].length; i++) {
+        elements[5][i].onclick = function(){ game.showTab(tabNames[i]) };
+        elements[6][i].textContent = tabTitles[i];
+    }
+    elements[7] = document.getElementsByClassName('settings-buttons');
+    elements[8] = document.getElementsByClassName('settings-titles');
     let currentTime = Date.now();
     setInterval(function(){
         const deltaTime = Date.now() - currentTime;
@@ -225,6 +269,37 @@ let update = {
             elements[4][i].textContent = notation.scientific(game.upgrades[i].currentCost);
         }
     }
+}
+
+let toDecimal = function(arrContents, obj, type){
+    let array = arrContents;
+    switch (type) {
+        case 1: // For normal objects.
+            for (let i = 0; i < array.length; i++) {
+                obj[array[i]] = new Decimal(obj[array[i]]);
+            }
+            break;
+        case 2: // For arrays of objects.
+            for (let i = 0; i < array.length; i++) {
+                for (let j in obj) {
+                    obj[j][array[i]] = new Decimal(obj[j][array[i]]);
+                }
+            }
+            break;
+        case 3: // For arrays of arrays.
+            for (let i = 0; i < array.length; i++) {
+                for (let j in obj) {
+                    for (let k = 0; k < array[i].length; k++) {
+                        console.log(array[i][k]);
+                        if (obj[j][array[i][k]].toString() == array[i][k]) {
+                            obj[j][array[i][k]] = new Decimal(obj[j][array[i][k]]);
+                        }
+                    }
+                }
+            }
+            break;
+    }
+    return obj;
 }
 
 let notation = {
@@ -254,25 +329,4 @@ let start = window.onload = function(){
 
 
 
-/*save() {
-        localStorage.setItem('savedGame', JSON.stringify(this.state));
-        console.log(JSON.stringify(this.state));
-    }
 
-    load() {
-        const gameState = JSON.parse(localStorage.getItem('savedGame'));
-        if (gameState != null) {
-            game = new Game(gameState);
-        } else {
-            game = new Game();
-        }
-        console.log(JSON.parse(localStorage.getItem('savedGame')));
-    }
-
-    reset() {
-        if (confirm('Would you like to reset your game?')) {
-            game = new Game();
-            game.save();
-            location.reload();
-        }
-    }*/
