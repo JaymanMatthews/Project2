@@ -35,13 +35,8 @@ class Game{
     load(){
         const gameState = JSON.parse(localStorage.getItem('savedGame'));
         this.state = {...this.state, ...gameState};
-        this.state.main = toDecimal(stateNames.main, this.state.main, 1);
-        this.state.upgrades = toDecimal(stateNames.upgrades, this.state.upgrades, 3);
-        this.upgrades = [];
-        for (const i in this.state.upgrades) {
-            let newUpgrade = new Upgrade(this.state.upgrades[i]);
-            this.upgrades.push(newUpgrade);
-        }
+        toDecimal(stateNames.main, this.state.main);
+        this.upgrades = this.state.upgrades.map(upgradeState => new Upgrade(upgradeState)); // The upgrades are mapped into upgrade objects using their state, filling an upgrades array.
         this.showTab(this.currentTab);
     }
 
@@ -101,11 +96,14 @@ class Game{
         this.coinsPerSec = this.coinsPerSec.add(value);
     }
 
-    showTab(tabName) {
+    showTab(tabName){
+        let tabs = [];
         for (let i = 0; i < tabNames.length; i++) {
-            document.getElementById('tab' + tabNames[i]).style.display = 'none';
+            tabs[i] = document.getElementById('tab' + tabNames[i]);
+            tabs[i].style.display = 'none';
         }
-        document.getElementById('tab' + tabName).style.display = 'block';
+        let selectedTab = document.getElementById('tab' + tabName);
+        selectedTab.style.display = 'block';
         if (this.currentTab != tabName) { 
             this.currentTab = tabName;
             this.save();
@@ -116,6 +114,7 @@ class Game{
 class Upgrade{
     constructor(state){
         this.state = state;
+        toDecimal(stateNames.upgrades[state.type - 1], state);
     }
 
     set increase(inc){
@@ -246,6 +245,12 @@ let init = function(){
     }
     elements[7] = document.getElementsByClassName('settings-buttons');
     elements[8] = document.getElementsByClassName('settings-titles');
+    elements[7][0].onclick = function(){ game.save() };
+    elements[7][1].onclick = function(){ game.reset() };
+    const settingsNames = ['Save Game', 'Reset Game'];
+    for (let i = 0; i < elements[7].length; i++) {
+        elements[8][i].textContent = settingsNames[i];
+    }
     let currentTime = Date.now();
     setInterval(function(){
         const deltaTime = Date.now() - currentTime;
@@ -271,35 +276,13 @@ let update = {
     }
 }
 
-let toDecimal = function(arrContents, obj, type){
-    let array = arrContents;
-    switch (type) {
-        case 1: // For normal objects.
-            for (let i = 0; i < array.length; i++) {
-                obj[array[i]] = new Decimal(obj[array[i]]);
-            }
-            break;
-        case 2: // For arrays of objects.
-            for (let i = 0; i < array.length; i++) {
-                for (let j in obj) {
-                    obj[j][array[i]] = new Decimal(obj[j][array[i]]);
-                }
-            }
-            break;
-        case 3: // For arrays of arrays.
-            for (let i = 0; i < array.length; i++) {
-                for (let j in obj) {
-                    for (let k = 0; k < array[i].length; k++) {
-                        console.log(array[i][k]);
-                        if (obj[j][array[i][k]].toString() == array[i][k]) {
-                            obj[j][array[i][k]] = new Decimal(obj[j][array[i][k]]);
-                        }
-                    }
-                }
-            }
-            break;
+let toDecimal = function(keys, obj, usetype){ // Thanks to etnpce for helping to refactor this function.
+    if (usetype) {
+        keys = keys[obj.type - 1];
     }
-    return obj;
+    for (let k of keys) {
+        obj[k] = new Decimal(obj[k]);
+    }
 }
 
 let notation = {
