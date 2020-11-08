@@ -27,43 +27,67 @@ class Game{
         }
     }
 
+    set coins(coins){
+        this.state.main.coins = coins;
+    }
+
+    get coins(){
+        return this.state.main.coins;
+    }
+
+    set coinsPerSec(cps){
+        this.state.main.cps = cps;
+    }
+
+    get coinsPerSec(){
+        return this.state.main.cps;
+    }
+
+    set time(time){
+        this.state.main.time = time;
+    }
+
+    get time(){
+        return this.state.main.time;
+    }
+
     addCoins(ms){
-        this.state.main.time += ms;
-        while (this.state.main.time > 50) {
-            this.state.main.time -= 50;
-            this.state.main.coins = this.state.main.coins.add(this.state.main.cps.div(20));
+        this.time += ms;
+        while (this.time > 50) {
+            this.time -= 50;
+            this.coins = this.coins.add(this.coinsPerSec.div(20));
         }
     }
 
     subCoins(cost){
-        this.state.main.coins = this.state.main.coins.sub(cost);
+        this.coins = this.coins.sub(cost);
     }
 
     addCps(value){
-        this.state.main.cps = this.state.main.cps.add(value);
+        this.coinsPerSec = this.coinsPerSec.add(value);
     }
 
     setPlayer(){
         return {};
     }
 
-    toDecimal(arrContents, object, opt){
+    toDecimal(arrContents, obj, opt){
         let array = arrContents;
         switch (opt) {
             case 1:
                 for (let i = 0; i < array.length; i++) {
-                    object[array[i]] = new Decimal(object[array[i]]);
+                    obj[array[i]] = new Decimal(obj[array[i]]);
                 }
                 break;
             case 2:
                 for (let i = 0; i < array.length; i++) {
-                    for (let j in object) {
-                        object[j][array[i]] = new Decimal(object[j][array[i]]);
+                    for (let j in obj) {
+                        obj[j][array[i]] = new Decimal(obj[j][array[i]]);
                     }
                 }
                 break;
         }
-        return object;
+        return obj;
     }
 }
 
@@ -72,23 +96,51 @@ class Upgrade{
         this.state = state;
     }
 
-    nextCost(){
-        return this.state.cost.mul(this.state.multi);
+    set increase(inc){
+        this.state.inc = inc;
+    }
+
+    get increase(){
+        return this.state.inc;
+    }
+
+    set currentCost(cost){
+        this.state.cost = cost;
+    }
+
+    get currentCost(){
+        return this.state.cost;
+    }
+
+    set nextCost(cost){
+        this.currentCost.mul(this.multiplier) = cost; 
+    }
+
+    get nextCost(){
+        return this.currentCost.mul(this.multiplier);
+    }
+
+    set multiplier(multi){
+        this.state.multi = multi; 
+    }
+
+    get multiplier(){
+        return this.state.multi;
     }
 
     changeCost(funct){
-        return this.state.cost = funct;
+        return this.currentCost = funct;
     }
 
     isBuyable(value){
-        return value.greaterThanOrEqualTo(this.state.cost);
+        return value.greaterThanOrEqualTo(this.currentCost);
     }
 
-    buy(object){
-        if (this.isBuyable(object.state.main.coins)) {
-            object.subCoins(this.state.cost);
-            object.addCps(this.state.inc);
-            this.changeCost(this.nextCost());
+    buy(obj){
+        if (this.isBuyable(obj.coins)) {
+            obj.subCoins(this.currentCost);
+            obj.addCps(this.increase);
+            this.changeCost(this.nextCost);
         }
     }
 }
@@ -127,7 +179,7 @@ const stateNames = {
 
 let game = new Game(player);
 const interval = {
-    update: game.state.main.time,
+    update: game.time,
     save: 15000
 };
 const elements = [];
@@ -167,10 +219,10 @@ let update = {
         game.addCoins(x);
     },
     display: function(){
-        elements[0][0].textContent = notation.scientific(game.state.main.coins);
-        elements[0][2].textContent = notation.scientific(game.state.main.cps);
-        for (let i = 0; i < elements[1].length; i++) {
-            elements[4][i].textContent = notation.scientific(game.state.upgrades[i].cost);
+        elements[0][0].textContent = notation.scientific(game.coins);
+        elements[0][2].textContent = notation.scientific(game.coinsPerSec);
+        for (let i in game.upgrades) {
+            elements[4][i].textContent = notation.scientific(game.upgrades[i].currentCost);
         }
     }
 }
@@ -186,7 +238,7 @@ let notation = {
     }
 }
 
-window.onload = function(){
+let start = window.onload = function(){
     init();
 }
 
