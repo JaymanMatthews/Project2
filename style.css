@@ -1,0 +1,52 @@
+*{
+    box-sizing: border-box;
+    font-family: Arial;
+}
+
+body{
+    background-color: #6A5ACD;
+}
+
+button{
+    border: 2px solid black;
+    border-radius: 6px;
+}
+
+button:hover{
+    cursor: pointer;
+    background-color: lightgray;
+}
+
+button:active{
+    transform: translateY(2px);
+}
+
+.top{
+    background-color: #FFB6C1;
+    border-radius: 4px;
+    margin: auto;
+    padding: 15px;
+    text-align: center;
+}
+
+.bottom{
+    background-color: orange;
+    margin: 8px;
+    padding: 10px;
+    border: 2px solid black;
+    display: flex;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.currency-info{
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.upgrade-buttons{
+    margin: 5px;
+    font-size: 14px;
+}
