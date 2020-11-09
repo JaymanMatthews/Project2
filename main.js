@@ -9,20 +9,25 @@ class Game{
                 coins: 0,
                 cps: 1,
                 time: 0,
-                tab: tabNames[0]
+                tab: tabNames[0],
+                base: {
+                    cps: 1
+                }
             },
             upgrades: [
                 {
-                    inc: 1,
-                    cost: 10,
-                    multi: 1.1,
-                    type: 1
+                    cost: 25,
+                    multi: 2,
+                    isBought: false,
+                    type: 2,
+                    num: 1
                 },
                 {
                     inc: 3,
                     cost: 40,
                     isBought: false,
-                    type: 2
+                    type: 2,
+                    num: 2
                 }
             ]
         };
@@ -36,6 +41,7 @@ class Game{
         const gameState = JSON.parse(localStorage.getItem('savedGame'));
         this.state = {...this.state, ...gameState};
         toDecimal(stateNames.main, this.state.main);
+        toDecimal(baseNames, this.state.main.base);
         this.upgrades = this.state.upgrades.map(upgradeState => new Upgrade(upgradeState)); // The upgrades are mapped into upgrade objects using their state, filling an upgrades array.
         this.showTab(this.currentTab);
     }
@@ -80,20 +86,41 @@ class Game{
         return this.state.main.tab;
     }
 
-    addCoins(ms){
-        this.time += ms;
-        while (this.time > 50) {
-            this.time -= 50;
-            this.coins = this.coins.add(this.coinsPerSec.div(20));
+    set baseCoinsPerSec(baseCps){
+        this.state.main.base.cps = baseCps;
+    }
+
+    get baseCoinsPerSec(){
+        return this.state.main.base.cps;
+    }
+
+    addToValue(value, gain, x, useCase){
+        switch (useCase) {
+            case 1: // Both value and gain converted to decimals.
+                return value.add(gain.div(x));
+            case 2: // Value in decimal form, but gain is not in decimal form.
+                return value.add((gain) / x);
+            case 3: // Both value and gain are not decimals.
+                return value + ((gain) / x);
         }
     }
 
-    subCoins(cost){
-        this.coins = this.coins.sub(cost);
+    subFromValue(value, cost, useCase){
+        switch (useCase) {
+            case 1: // Value is converted to a decimal.
+                return value.sub(cost);
+            case 2: // Value is not in decimal form.
+                return (value) - cost;
+        }
     }
 
-    addCps(value){
-        this.coinsPerSec = this.coinsPerSec.add(value);
+    multiplyValue(value, multiplier, useCase){
+        switch (useCase) {
+            case 1: // Value is converted to a decimal.
+                return value.mul(multiplier);
+            case 2: // Value is not in decimal form.
+                return (value) * multiplier;
+        }
     }
 
     showTab(tabName){
@@ -114,7 +141,7 @@ class Game{
 class Upgrade{
     constructor(state){
         this.state = state;
-        toDecimal(stateNames.upgrades[state.type - 1], state);
+        toDecimal(stateNames.upgrades[state.num - 1], state);
     }
 
     set increase(inc){
@@ -177,14 +204,14 @@ class Upgrade{
         switch (type) {
             case 1: // Rebuyable upgrades; scaling costs, adding cps each time.
                 if (this.isBuyable(obj.coins)) {
-                    obj.subCoins(this.currentCost);
+                    obj.coins = obj.subFromValue(obj.coins, this.currentCost, 1);
                     obj.addCps(this.increase);
                     this.changeCost(this.nextCost);
                 }
                 break;
             case 2: // One-time buy upgrades; no scaling costs, give different effects.
                 if (this.isBuyable(obj.coins) && !this.isBought) {
-                    obj.subCoins(this.currentCost);
+                    obj.coins = obj.subFromValue(obj.coins, this.currentCost, 1);
                     this.isBought = true;
                 }
                 break;
@@ -200,7 +227,6 @@ const stateNames = {
     ],
     upgrades: [
         [
-            'inc',
             'cost',
             'multi'
         ],
@@ -210,7 +236,9 @@ const stateNames = {
         ]
     ]
 };
-
+const baseNames = [
+    'cps'
+]
 let game = new Game();
 const interval = {
     update: game.time,
@@ -233,7 +261,7 @@ let init = function(){
     }
     elements[1] = document.getElementsByClassName('upgrade-buttons');
     elements[2] = document.getElementsByClassName('upgrade-titles');
-    const upgradeTitles = ['Upgrade 1', 'Upgrade 2'];
+    const upgradeTitles = ['Increase coin gain per second based on current coins.', 'Upgrade 2'];
     elements[3] = document.getElementsByClassName('upgrade-cost-text');
     for (let i = 0; i < elements[1].length; i++) {
         elements[1][i].onclick = function(){ game.upgrades[i].buy(game, game.upgrades[i].type) };
@@ -269,8 +297,13 @@ let init = function(){
 }
 
 let update = {
-    game: function(x){
-        game.addCoins(x);
+    game: function(ms){
+        game.time = game.addToValue(game.time, ms, 1, 3);
+        while (game.time > 50) {
+            game.time = game.subFromValue(game.time, 50, 2);
+            game.coins = game.addToValue(game.coins, game.coinsPerSec, 20, 1);
+            if (game.upgrades[0].isBought) game.coinsPerSec = game.multiplyValue(game.baseCoinsPerSec, game.upgrades[0].multiplier, 1);
+        }
     },
     display: function(){
         elements[0][0].textContent = notation.scientific(game.coins);
@@ -281,9 +314,9 @@ let update = {
     }
 }
 
-let toDecimal = function(keys, obj, usetype){ // Thanks to etnpce for helping to refactor this function.
-    if (usetype) {
-        keys = keys[obj.type - 1];
+let toDecimal = function(keys, obj, useType){ // Thanks to etnpce for helping to refactor this function.
+    if (useType) {
+        keys = keys[obj.num - 1];
     }
     for (let k of keys) {
         obj[k] = new Decimal(obj[k]);
