@@ -216,10 +216,15 @@ const interval = {
     update: game.time,
     save: 15000
 };
+const version = {
+    type: 'P.O.C',
+    no: '1.16'
+};
 const elements = [];
 
 let init = function(){
     game.load();
+    document.title = "Jayman's Idle Project - " + version.type + ' ' + version.no;
     elements[0] = document.getElementsByClassName('currency-info');
     const currencyText = [' coins', ' coins/sec'];
     const x = [1, 3];
