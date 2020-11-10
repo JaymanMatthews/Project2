@@ -286,7 +286,7 @@ const MAX_TIME = 50;
 const SECOND = 1000;
 const ELEMENTS = [];
 
-const INIT = function(){
+const init = function(){
     game.load();
     document.title = "Jayman's Idle Project - " + VERSION.type + ' ' + VERSION.no;
     ELEMENTS[0] = document.getElementsByClassName('currency-info');
@@ -326,15 +326,15 @@ const INIT = function(){
     setInterval(function(){
         const DELTA_TIME = Date.now() - currentTime;
         currentTime = Date.now();
-        update.game(DELTA_TIME);
-        update.display();
+        UPDATE.game(DELTA_TIME);
+        UPDATE.display();
     }, INTERVAL.update);
     setInterval(function(){
         game.save();
     }, INTERVAL.save);
 }
 
-let update = {
+const UPDATE = {
     game: function(ms){
         game.time = game.addToValue(game.time, ms, 3);
         while (game.time > MAX_TIME) {
@@ -344,22 +344,22 @@ let update = {
         }
     },
     display: function(){
-        ELEMENTS[0][0].textContent = notation.scientific(game.coins);
-        ELEMENTS[0][2].textContent = notation.scientific(game.coinsPerSec);
+        ELEMENTS[0][0].textContent = NOTATION.scientific(game.coins);
+        ELEMENTS[0][2].textContent = NOTATION.scientific(game.coinsPerSec);
         for (let i in game.upgrades) {
-            ELEMENTS[4][i].textContent = notation.scientific(game.upgrades[i].currentCost);
+            ELEMENTS[4][i].textContent = NOTATION.scientific(game.upgrades[i].currentCost);
         }
     }
 }
 
-let applyUpgradeEffects = function(){
+const applyUpgradeEffects = function(){
     let firstMulti = game.firstUpgrade.multiplier = game.firstUpgrade.giveEffect(game.addToValue(game.coins, 10, 4), game.baseMultiplier);
     let secondEffect = game.secondUpgrade.giveEffect(game.secondUpgrade.multiplier, game.baseMultiplier); 
     let totalEffect = game.multiplyValue(firstMulti, secondEffect, 2);
     return totalEffect;
 }
 
-let toDecimal = function(keys, obj, useType){ // Thanks to etnpce for helping to refactor this function.
+const toDecimal = function(keys, obj, useType){ // Thanks to etnpce for helping to refactor this function.
     if (useType) {
         keys = keys[obj.num - 1];
     }
@@ -368,7 +368,7 @@ let toDecimal = function(keys, obj, useType){ // Thanks to etnpce for helping to
     }
 }
 
-let notation = {
+const NOTATION = {
     scientific: function(value){
         let exponent = value.log10().floor();
         let mantissa = value.div(new Decimal(10).pow(exponent));
@@ -379,8 +379,8 @@ let notation = {
     }
 }
 
-let start = window.onload = function(){
-    INIT();
+const start = window.onload = function(){
+    init();
 }
 
 
