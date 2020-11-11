@@ -26,17 +26,23 @@ button:active{
 
 .top{
     background-color: #FFB6C1;
+    border: 2px solid black;
     border-radius: 4px;
     padding: 15px;
     text-align: center;
 }
 
 .tabs{
-    display: inline-block;
+    display: flex;
+    flex-wrap: wrap;
+    float: left;
     text-align: center;
+    align-items: center;
+    justify-content: center;
 }
 
 .bottom{
+    clear: both;
     background-color: orange;
     padding: 10px;
     border: 2px solid black;

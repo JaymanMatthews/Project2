@@ -6,25 +6,34 @@ class Game{
     static defaultState(){
         return {
             main: {
-                coins: 0,
-                cps: 1,
+                coins: '0',
+                cps: '1',
                 time: 0,
                 tab: TAB_NAMES[0]
             },
             upgrades: [
                 {
-                    cost: 25,
-                    multi: 1,
-                    isBought: false,
+                    cost: '25',
+                    multi: '1',
+                    bought: false,
                     type: 2,
                     num: 1
                 },
                 {
-                    cost: 40,
-                    multi: 2,
-                    isBought: false,
+                    cost: '40',
+                    multi: '2',
+                    bought: false,
                     type: 2,
                     num: 2
+                },
+                {
+                    cost: '100',
+                    costMulti: '1.21',
+                    multi: '1',
+                    multiInc: '0.1',
+                    amt: '0',
+                    type: 1,
+                    num: 3
                 }
             ]
         };
@@ -32,8 +41,8 @@ class Game{
 
     static baseValues(){
         return {
-            cps: new Decimal(1),
-            multi: new Decimal(1)
+            cps: new Decimal(Game.defaultState().main.cps),
+            multi: new Decimal('1')
         };
     }
 
@@ -42,8 +51,8 @@ class Game{
     }
 
     load(){
-        const gameState = JSON.parse(localStorage.getItem('savedGame'));
-        this.state = {...this.state, ...gameState};
+        const GAME_STATE = JSON.parse(localStorage.getItem('savedGame'));
+        this.state = {...this.state, ...GAME_STATE};
         toDecimal(STATE_NAMES.main, this.state.main);
         this.base = Game.baseValues();
         this.upgrades = this.state.upgrades.map(upgradeState => new Upgrade(upgradeState)); // The upgrades are mapped into upgrade objects using their state, filling an upgrades array.
@@ -51,7 +60,8 @@ class Game{
     }
 
     reset(){
-        if (confirm('Would you like to reset your game?')) {
+        const IS_CONFIRMED = confirm('Would you like to reset your game?');
+        if (IS_CONFIRMED) {
             this.state = Game.defaultState();
             this.save();
             location.reload();
@@ -122,15 +132,25 @@ class Game{
         return this.upgrades[1];
     }
 
+    set thirdUpgrade(upgrade){
+        this.upgrades[2] = upgrade;
+    }
+
+    get thirdUpgrade(){
+        return this.upgrades[2];
+    }
+
     addToValue(value, gain, useCase){
         switch (useCase) {
             case 1: // Both value and gain converted to decimals.
                 return value.add(gain.mul(MAX_TIME / SECOND));
             case 2: // Value in decimal form, but gain is not in decimal form.
                 return value.add((gain) * (MAX_TIME / SECOND));
-            case 3: // Both value and gain are not decimals.
+            case 3: // Value in decimal form.
+                return value.add(gain);
+            case 4: // Both value and gain are not decimals.
                 return value + (gain);
-            case 4: // Value is a decimal and needs to be log 10'd
+            case 5: // Value is a decimal and needs to be log 10'd
                 return value.add(gain).log10();
         }
     }
@@ -191,11 +211,19 @@ class Upgrade{
     }
 
     set nextCost(cost){
-        this.currentCost.mul(this.multiplier) = cost; 
+        this.currentCost.mul(this.costMultiplier) = cost; 
     }
 
     get nextCost(){
-        return this.currentCost.mul(this.multiplier);
+        return this.currentCost.mul(this.costMultiplier);
+    }
+
+    set costMultiplier(costMulti){
+        this.state.costMulti = costMulti; 
+    }
+
+    get costMultiplier(){
+        return this.state.costMulti;
     }
 
     set multiplier(multi){
@@ -206,12 +234,44 @@ class Upgrade{
         return this.state.multi;
     }
 
-    set isBought(isBought){
-        this.state.isBought = isBought; 
+    set isBought(bought){
+        this.state.bought = bought; 
     }
 
     get isBought(){
-        return this.state.isBought;
+        return this.state.bought;
+    }
+
+    set amountBought(amt){
+        this.state.amt = amt; 
+    }
+
+    get amountBought(){
+        return this.state.amt;
+    }
+
+    set newAmountBought(amt){
+        this.amountBought.add(1) = amt; 
+    }
+
+    get newAmountBought(){
+        return this.amountBought.add(1);
+    }
+
+    set multiplierIncrease(multiInc){
+        this.state.multiInc = multiInc; 
+    }
+
+    get multiplierIncrease(){
+        return this.state.multiInc;
+    }
+
+    set newMultiplier(multi){
+        this.multiplier.add(this.multiplierIncrease) = multi; 
+    }
+
+    get newMultiplier(){
+        return this.multiplier.add(this.multiplierIncrease);
     }
 
     set type(type){
@@ -223,7 +283,19 @@ class Upgrade{
     }
 
     changeCost(funct){
-        return this.currentCost = funct;
+        this.currentCost = funct;
+    }
+
+    changeMultiplier(funct){
+        this.multiplier = funct;
+    }
+
+    changeAmountBought(funct){
+        this.amountBought = funct;
+    }
+
+    changeBoughtStatus(status){
+        this.isBought = status;
     }
 
     isBuyable(value){
@@ -231,7 +303,7 @@ class Upgrade{
     }
 
     giveEffect(statement, statement2){
-        if (this.isBought) {
+        if (this.isBought || this.amountBought >= 1) {
             return statement;
         }
         return statement2;
@@ -242,21 +314,22 @@ class Upgrade{
             case 1: // Rebuyable upgrades; scaling costs, adding cps each time.
                 if (this.isBuyable(obj.coins)) {
                     obj.coins = obj.subFromValue(obj.coins, this.currentCost, 1);
-                    obj.addCps(this.increase);
                     this.changeCost(this.nextCost);
+                    this.changeMultiplier(this.newMultiplier);
+                    this.changeAmountBought(this.newAmountBought);
                 }
                 break;
             case 2: // One-time buy upgrades; no scaling costs, give different effects.
                 if (this.isBuyable(obj.coins) && !this.isBought) {
                     obj.coins = obj.subFromValue(obj.coins, this.currentCost, 1);
-                    this.isBought = true;
+                    this.changeBoughtStatus(true);
                 }
                 break;
         }
     }
 }
 
-const TAB_NAMES = ['upgrade-container', 'settings-container'];
+const TAB_NAMES = ['upgrade-container', 'settings-container', 'prestige-container'];
 const STATE_NAMES = {
     main: [
         'coins',
@@ -270,6 +343,13 @@ const STATE_NAMES = {
         [
             'cost',
             'multi'
+        ],
+        [
+            'cost',
+            'costMulti',
+            'amt',
+            'multi',
+            'multiInc'
         ]
     ]
 };
@@ -297,7 +377,7 @@ const init = function(){
     }
     ELEMENTS[1] = document.getElementsByClassName('upgrade-buttons');
     ELEMENTS[2] = document.getElementsByClassName('upgrade-titles');
-    const UPGRADE_TITLES = ['Increase coin gain per second based on current coins.', 'Multiply coin gain per second by 2.'];
+    const UPGRADE_TITLES = ['Increase coin gain per second based on current coins.', 'Multiply coin gain per second by 2.', 'Multiply coin gain (rebuyable).'];
     ELEMENTS[3] = document.getElementsByClassName('upgrade-cost-text');
     for (let i = 0; i < ELEMENTS[1].length; i++) {
         ELEMENTS[1][i].onclick = function(){ game.upgrades[i].buy(game, game.upgrades[i].type) };
@@ -307,15 +387,13 @@ const init = function(){
     ELEMENTS[4] = document.getElementsByClassName('upgrade-costs');
     ELEMENTS[5] = document.getElementsByClassName('tab-buttons');
     ELEMENTS[6] = document.getElementsByClassName('tab-titles');
-    const TAB_TITLES = ['Upgrades', 'Settings'];
+    const TAB_TITLES = ['Upgrades', 'Settings', 'Prestige'];
     for (let i = 0; i < ELEMENTS[5].length; i++) {
         ELEMENTS[5][i].onclick = function(){ game.showTab(TAB_NAMES[i]) };
         ELEMENTS[6][i].textContent = TAB_TITLES[i];
     }
     ELEMENTS[7] = document.getElementsByClassName('settings-buttons');
     ELEMENTS[8] = document.getElementsByClassName('settings-titles');
-    /*ELEMENTS[7][0].onclick = function(){ game.save() };
-    ELEMENTS[7][1].onclick = function(){ game.reset() };*/
     const SETTINGS = ['game.save()', 'game.reset()'];
     const SETTINGS_NAMES = ['Save Game', 'Reset Game'];
     for (let i = 0; i < ELEMENTS[7].length; i++) {
@@ -336,27 +414,37 @@ const init = function(){
 
 const UPDATE = {
     game: function(ms){
-        game.time = game.addToValue(game.time, ms, 3);
+        game.time = game.addToValue(game.time, ms, 4);
         while (game.time > MAX_TIME) {
             game.time = game.subFromValue(game.time, MAX_TIME, 2);
             game.coins = game.addToValue(game.coins, game.coinsPerSec, 1);
-            game.coinsPerSec = game.multiplyValue(game.baseCoinsPerSec, applyUpgradeEffects(), 1);
+            game.coinsPerSec = game.multiplyValue(game.baseCoinsPerSec, getTotalEffect(), 1);
         }
     },
     display: function(){
         ELEMENTS[0][0].textContent = NOTATION.scientific(game.coins);
         ELEMENTS[0][2].textContent = NOTATION.scientific(game.coinsPerSec);
         for (let i in game.upgrades) {
-            ELEMENTS[4][i].textContent = NOTATION.scientific(game.upgrades[i].currentCost);
+            ELEMENTS[4][i].textContent = NOTATION.scientific(game.upgrades[i].currentCost) + ' x' + NOTATION.scientific(game.upgrades[i].multiplier);
         }
     }
 }
 
-const applyUpgradeEffects = function(){
-    let firstMulti = game.firstUpgrade.multiplier = game.firstUpgrade.giveEffect(game.addToValue(game.coins, 10, 4), game.baseMultiplier);
-    let secondEffect = game.secondUpgrade.giveEffect(game.secondUpgrade.multiplier, game.baseMultiplier); 
-    let totalEffect = game.multiplyValue(firstMulti, secondEffect, 2);
-    return totalEffect;
+const getTotalEffect = function(){
+    const UPGRADE_EFFECTS = [];
+    const UPGRADE_CALLS = [
+        /*0*/game.firstUpgrade.multiplier = game.firstUpgrade.giveEffect(game.addToValue(game.coins, 10, 5), game.baseMultiplier),
+        /*1*/game.secondUpgrade.giveEffect(game.secondUpgrade.multiplier, game.baseMultiplier),
+        /*2*/game.thirdUpgrade.giveEffect(game.thirdUpgrade.multiplier, game.baseMultiplier)
+    ];
+    for (let i = 0; i < game.upgrades.length; i++) { UPGRADE_EFFECTS.push(UPGRADE_CALLS[i]) }; 
+    let currentEffect = game.multiplyValue(UPGRADE_EFFECTS[0], UPGRADE_EFFECTS[1], 2);
+    const TOTAL_EFFECTS = [
+        game.multiplyValue(currentEffect, UPGRADE_EFFECTS[2], 2)
+    ];
+    for (let i in TOTAL_EFFECTS) { currentEffect = TOTAL_EFFECTS[i] };
+    const FINAL_EFFECT = currentEffect;
+    return FINAL_EFFECT;
 }
 
 const toDecimal = function(keys, obj, useType){ // Thanks to etnpce for helping to refactor this function.
